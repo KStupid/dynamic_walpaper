@@ -1,0 +1,78 @@
+{
+    "source_movie": "/home/karan/clip.mp4",
+    "duration": 16.683,
+    "duration_formatted": "00:00:16",
+    "workspace_count": 10,
+    "frames": [
+        {
+            "workspace": 1,
+            "timestamp": 1.964,
+            "timestamp_formatted": "00:00:01",
+            "file": "workspace_1.jpg",
+            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_1.jpg"
+        },
+        {
+            "workspace": 2,
+            "timestamp": 3.068,
+            "timestamp_formatted": "00:00:03",
+            "file": "workspace_2.jpg",
+            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_2.jpg"
+        },
+        {
+            "workspace": 3,
+            "timestamp": 4.088,
+            "timestamp_formatted": "00:00:04",
+            "file": "workspace_3.jpg",
+            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_3.jpg"
+        },
+        {
+            "workspace": 4,
+            "timestamp": 6.762,
+            "timestamp_formatted": "00:00:06",
+            "file": "workspace_4.jpg",
+            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_4.jpg"
+        },
+        {
+            "workspace": 5,
+            "timestamp": 8.271,
+            "timestamp_formatted": "00:00:08",
+            "file": "workspace_5.jpg",
+            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_5.jpg"
+        },
+        {
+            "workspace": 6,
+            "timestamp": 8.62,
+            "timestamp_formatted": "00:00:08",
+            "file": "workspace_6.jpg",
+            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_6.jpg"
+        },
+        {
+            "workspace": 7,
+            "timestamp": 9.988,
+            "timestamp_formatted": "00:00:09",
+            "file": "workspace_7.jpg",
+            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_7.jpg"
+        },
+        {
+            "workspace": 8,
+            "timestamp": 12.588,
+            "timestamp_formatted": "00:00:12",
+            "file": "workspace_8.jpg",
+            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_8.jpg"
+        },
+        {
+            "workspace": 9,
+            "timestamp": 13.335,
+            "timestamp_formatted": "00:00:13",
+            "file": "workspace_9.jpg",
+            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_9.jpg"
+        },
+        {
+            "workspace": 10,
+            "timestamp": 14.299,
+            "timestamp_formatted": "00:00:14",
+            "file": "workspace_10.jpg",
+            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_10.jpg"
+        }
+    ]
+}
