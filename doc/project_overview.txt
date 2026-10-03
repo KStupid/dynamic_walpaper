@@ -1,0 +1,195 @@
+====================================================================
+ DYNAMIC WORKSPACE WALLPAPER — PROJECT OVERVIEW & IMPLEMENTATION PLAN
+ doc/project_overview.txt  (written after the v2 implementation)
+====================================================================
+
+1. WHAT THIS PROJECT IS
+-----------------------
+A local-only Python tool for Arch Linux + Hyprland that turns frames from
+the movies you've seen into per-workspace wallpapers: every virtual
+workspace gets its own random movie frame, so switching workspaces feels
+like flipping through memories of your movies.
+
+It is built from the `idea` spec file in the repo root.
+
+2. WHAT THE PROJECT DOES RIGHT NOW (v2)
+---------------------------------------
+ONE command does everything (matches the spec: command <location>
+<no_of_workspace>):
+
+    python main.py ~/Movies 10
+
+    -> scans ~/Movies for video files (mp4, mkv, avi, mov, webm, ...)
+    -> randomly splits the 10 workspaces across the found movies
+       (how many frames each movie contributes is random)
+    -> extracts one random frame per workspace with ffmpeg
+    -> saves them to wallpapers/movie/workspace_N.jpg + metadata.json
+    -> rewrites the [workspaces] table in config/config.toml
+       (paths stored RELATIVE to the project root -> portable)
+    -> stops any old background daemon, then starts the listener
+       detached in the background (zero user intervention)
+    -> prints the exec-once line for permanent auto-start on login
+
+Other modes:
+
+    python main.py                                  # listener only, foreground
+    python main.py --listen                         # same, explicit
+    python main.py <location> <count> --foreground  # generate, then listen here
+    python main.py <location> <count> --no-start    # generate only
+    python main.py <location> <count> --seed 42     # reproducible frames
+    python main.py <location> <count> --output-dir DIR
+
+The old standalone CLI still works:
+    python tools/generate_movie_wallpapers.py <movie_or_folder> <count>
+
+Runtime behavior (unchanged in spirit, hardened):
+    Hyprland broadcasts "workspacev2>>ID,NAME" on its event socket
+    (.socket2.sock). The daemon connects, parses the workspace ID,
+    looks it up in the mapping, preloads the image into hyprpaper if
+    needed, then runs:
+        hyprctl hyprpaper wallpaper "MONITOR,PATH,cover"
+
+3. FILE MAP (who does what, inputs -> outputs)
+----------------------------------------------
+main.py                     Entry point / single command.
+                            IN : CLI args (<location> <count>), config.toml
+                            OUT: generated JPGs, updated config.toml,
+                                 background daemon process, pidfile
+                                 ($XDG_RUNTIME_DIR/dynamic-wallpaper.pid),
+                                 daemon log ($XDG_RUNTIME_DIR/dynamic-wallpaper.log)
+
+core/generator.py           Movie -> wallpaper pipeline (shared library).
+                            IN : movie file or folder, workspace count, seed
+                            OUT: workspace_N.jpg frames, metadata.json,
+                                 rewritten [workspaces] in config.toml
+                            Key functions:
+                              find_movies()          file OR folder -> list
+                              split_count_randomly() random per-movie split
+                              generate_timestamps()  random unique timestamps
+                              extract_frame()        ffmpeg -ss <t> -frames:v 1
+                              generate_wallpapers()  full orchestration
+
+core/config.py              config.toml load / validate / write.
+                            IN : config/config.toml
+                            OUT: {"workspaces": {id: abs_path},
+                                  "monitor": name_or_None}
+                            Relative paths resolved against the project root.
+                            Also: save_config(), persist_monitor().
+
+core/wallpaper.py           Talks to hyprpaper via hyprctl.
+                            IN : image path + monitor name
+                            OUT: True/False, the visible wallpaper change
+                            Protocol: listloaded -> (preload) -> wallpaper.
+                            detect_monitor() reads `hyprctl monitors -j`.
+
+core/mapping.py             In-memory {workspace_id: wallpaper} dict wrapper.
+
+platforms/hyprland.py       Hyprland IPC backend.
+                            IN : byte stream from .socket2.sock
+                                 (env: XDG_RUNTIME_DIR, HYPRLAND_INSTANCE_SIGNATURE)
+                            OUT: set_wallpaper() calls per workspace switch
+                            Bytes are buffered and split on b"\n" BEFORE
+                            decoding (survives split UTF-8 across packets).
+
+config/config.toml          The state file. Shape:
+                                monitor = "eDP-1"     # or "auto", or absent
+                                [workspaces]
+                                "1" = "wallpapers/movie/workspace_1.jpg"
+                            Written by the generator; monitor auto-persisted
+                            on first listener start (edit it by hand anytime).
+
+wallpapers/movie/           Generated frames + metadata.json
+                            (source movie, per-frame timestamp + movie).
+
+doc/project_overview.txt    This file.
+tools/generate_movie_wallpapers.py   Thin CLI wrapper around core/generator.py.
+
+4. MAPPING TO THE `idea` SPEC (current scope)
+---------------------------------------------
+R1  memories of movies, runs locally .................. DONE
+R2  single command: command <location> <no_of_workspace> ... DONE (main.py)
+R3  <location> is a folder; screenshots of any movie in it ... DONE
+R4  how many screenshots per movie is random ......... DONE (split_count_randomly)
+R5  wallpapers written into config/config.toml ....... DONE
+R6  runs in background with zero user intervention ... DONE (pidfile + detached
+    spawn + restart-on-regenerate + exec-once hint)
+R7  workspace switch shows that workspace's wallpaper ... DONE
+R8  Arch + Hyprland, GitHub-ready (portable) .......... DONE (relative paths,
+    monitor auto-detect; no more hardcoded /home/karan or eDP-1 assumptions)
+
+5. CORRECT IMPLEMENTATION PLAN (as implemented in v2)
+-----------------------------------------------------
+Change A - Single entrypoint                        [DONE]
+    main.py now has argparse: location + count positionals, --seed,
+    --output-dir, --listen, --foreground, --no-start. No-args = listener.
+
+Change B - Folder scanning                          [DONE]
+    find_movies() accepts a file or a folder (non-recursive scan of 11
+    video extensions, sorted before the random split).
+
+Change C - Random per-movie distribution            [DONE]
+    split_count_randomly(): every movie gets >= 1 frame when
+    count >= movies (remainder multinomial-random); when
+    count < movies, distinct movies are chosen at random.
+    Verified: sums exactly, varies across seeds.
+
+Change D - Background auto-start                    [DONE]
+    After generation: stale/old daemon is SIGTERM'd (graceful), a fresh
+    listener is spawned detached (start_new_session, logs to
+    $XDG_RUNTIME_DIR/dynamic-wallpaper.log), liveness is verified 0.7s
+    later, and the exec-once line is printed. Daemon writes its pidfile
+    and clears it on shutdown. SIGTERM handler -> clean socket close.
+
+Change E - Portability                              [DONE]
+    - config.toml now stores project-relative paths; core/config.py
+      resolves them to absolute at load time (absolute paths still OK).
+    - monitor key in config.toml; "auto" or absent = detected via
+      `hyprctl monitors -j` and persisted for later editing.
+    - config no longer contains /home/karan absolute paths.
+
+Bug fixes included (were found in the v1 audit):
+    B1 hyprpaper preload protocol   - listloaded check, preload before
+                                      wallpaper            [DONE]
+    B2 set_wallpaper() result       - listener logs a warning on failure
+                                      instead of ignoring it  [DONE]
+    B3 UTF-8 split across recv()    - bytes buffer + per-line
+                                      errors="replace" decode [DONE]
+
+6. VERIFICATION (what was tested before shipping)
+-------------------------------------------------
+- compileall on all modules: OK
+- split_count_randomly: exact sums for 6x6 totals/movies combos, randomness OK
+- load_config: relative->absolute resolution, monitor parsing, TOML roundtrip
+- LIVE end-to-end: python main.py <folder> 6 on a copy of the project with
+  two synthetic ffmpeg videos: folder scanned, random split (4+2 then 2+4
+  across runs), frames extracted, config rewritten with relative paths,
+  daemon spawned, connected to the real Hyprland IPC, and shut down
+  gracefully via SIGTERM with pidfile cleanup.
+
+7. KNOWN LIMITATIONS
+--------------------
+- Comments inside config.toml are stripped when the tool rewrites it.
+- Folder scan is non-recursive (no subfolders).
+- Special workspaces (special:*) log a "no wallpaper mapped" warning — harmless.
+- One unreadable/corrupt movie is skipped with a warning, not fatal.
+- No reconnect: if Hyprland restarts, restart the daemon (re-run the command).
+
+8. FUTURE (from the `idea` doc — intentionally NOT implemented yet)
+-------------------------------------------------------------------
+- Periodic re-generation: random new screenshots refresh over time.
+- Auto-detect how many workspaces exist and size the mapping dynamically.
+- Make the randomness itself configurable.
+- Choose which movie goes to which workspace explicitly.
+
+9. QUICKSTART
+-------------
+    # one-time (permanent auto-start): add to hyprland.conf
+    exec-once = python /path/to/dynamic_walpaper/main.py --listen
+
+    # regenerate memories from a folder of movies:
+    python main.py ~/Movies 10
+
+    # inspect / control the background daemon:
+    cat $XDG_RUNTIME_DIR/dynamic-wallpaper.log
+    kill $(cat $XDG_RUNTIME_DIR/dynamic-wallpaper.pid)     # graceful stop
+====================================================================

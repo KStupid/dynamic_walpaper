@@ -1,78 +1,93 @@
 {
-    "source_movie": "/home/karan/clip.mp4",
-    "duration": 16.683,
-    "duration_formatted": "00:00:16",
+    "source_location": "/run/media/karan/New Volume/ssd",
+    "movies": [
+        "/run/media/karan/New Volume/ssd/Flow 2024 1080p WEB-DL HEVC x265 BONE.mkv",
+        "/run/media/karan/New Volume/ssd/I.Saw.the.TV.Glow.2024.1080p.WEB-DL.x264.AAC5.1-Pahe.in (2).mkv",
+        "/run/media/karan/New Volume/ssd/Sore A Wife From the Future 2025 1080p WEB-DL HEVC x265 5.1 BONE.mkv",
+        "/run/media/karan/New Volume/ssd/The.Dark.Knight.Rises.2012.Bluray.2160p.AV1.HDR10.OPUS.5.1-UH.mkv",
+        "/run/media/karan/New Volume/ssd/The.Drama.2026.2160p.iT.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-4kHdHub.Com.mkv"
+    ],
     "workspace_count": 10,
     "frames": [
         {
             "workspace": 1,
-            "timestamp": 1.964,
-            "timestamp_formatted": "00:00:01",
+            "timestamp": 1073.376,
+            "timestamp_formatted": "00:17:53",
             "file": "workspace_1.jpg",
-            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_1.jpg"
+            "path": "wallpapers/movie/workspace_1.jpg",
+            "movie": "/run/media/karan/New Volume/ssd/Flow 2024 1080p WEB-DL HEVC x265 BONE.mkv"
         },
         {
             "workspace": 2,
-            "timestamp": 3.068,
-            "timestamp_formatted": "00:00:03",
+            "timestamp": 4448.445,
+            "timestamp_formatted": "01:14:08",
             "file": "workspace_2.jpg",
-            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_2.jpg"
+            "path": "wallpapers/movie/workspace_2.jpg",
+            "movie": "/run/media/karan/New Volume/ssd/Flow 2024 1080p WEB-DL HEVC x265 BONE.mkv"
         },
         {
             "workspace": 3,
-            "timestamp": 4.088,
-            "timestamp_formatted": "00:00:04",
+            "timestamp": 1719.147,
+            "timestamp_formatted": "00:28:39",
             "file": "workspace_3.jpg",
-            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_3.jpg"
+            "path": "wallpapers/movie/workspace_3.jpg",
+            "movie": "/run/media/karan/New Volume/ssd/I.Saw.the.TV.Glow.2024.1080p.WEB-DL.x264.AAC5.1-Pahe.in (2).mkv"
         },
         {
             "workspace": 4,
-            "timestamp": 6.762,
-            "timestamp_formatted": "00:00:06",
+            "timestamp": 5602.107,
+            "timestamp_formatted": "01:33:22",
             "file": "workspace_4.jpg",
-            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_4.jpg"
+            "path": "wallpapers/movie/workspace_4.jpg",
+            "movie": "/run/media/karan/New Volume/ssd/I.Saw.the.TV.Glow.2024.1080p.WEB-DL.x264.AAC5.1-Pahe.in (2).mkv"
         },
         {
             "workspace": 5,
-            "timestamp": 8.271,
-            "timestamp_formatted": "00:00:08",
+            "timestamp": 3317.424,
+            "timestamp_formatted": "00:55:17",
             "file": "workspace_5.jpg",
-            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_5.jpg"
+            "path": "wallpapers/movie/workspace_5.jpg",
+            "movie": "/run/media/karan/New Volume/ssd/Sore A Wife From the Future 2025 1080p WEB-DL HEVC x265 5.1 BONE.mkv"
         },
         {
             "workspace": 6,
-            "timestamp": 8.62,
-            "timestamp_formatted": "00:00:08",
+            "timestamp": 5870.2,
+            "timestamp_formatted": "01:37:50",
             "file": "workspace_6.jpg",
-            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_6.jpg"
+            "path": "wallpapers/movie/workspace_6.jpg",
+            "movie": "/run/media/karan/New Volume/ssd/Sore A Wife From the Future 2025 1080p WEB-DL HEVC x265 5.1 BONE.mkv"
         },
         {
             "workspace": 7,
-            "timestamp": 9.988,
-            "timestamp_formatted": "00:00:09",
+            "timestamp": 6553.253,
+            "timestamp_formatted": "01:49:13",
             "file": "workspace_7.jpg",
-            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_7.jpg"
+            "path": "wallpapers/movie/workspace_7.jpg",
+            "movie": "/run/media/karan/New Volume/ssd/The.Dark.Knight.Rises.2012.Bluray.2160p.AV1.HDR10.OPUS.5.1-UH.mkv"
         },
         {
             "workspace": 8,
-            "timestamp": 12.588,
-            "timestamp_formatted": "00:00:12",
+            "timestamp": 438.275,
+            "timestamp_formatted": "00:07:18",
             "file": "workspace_8.jpg",
-            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_8.jpg"
+            "path": "wallpapers/movie/workspace_8.jpg",
+            "movie": "/run/media/karan/New Volume/ssd/The.Drama.2026.2160p.iT.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-4kHdHub.Com.mkv"
         },
         {
             "workspace": 9,
-            "timestamp": 13.335,
-            "timestamp_formatted": "00:00:13",
+            "timestamp": 2383.228,
+            "timestamp_formatted": "00:39:43",
             "file": "workspace_9.jpg",
-            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_9.jpg"
+            "path": "wallpapers/movie/workspace_9.jpg",
+            "movie": "/run/media/karan/New Volume/ssd/The.Drama.2026.2160p.iT.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-4kHdHub.Com.mkv"
         },
         {
             "workspace": 10,
-            "timestamp": 14.299,
-            "timestamp_formatted": "00:00:14",
+            "timestamp": 4942.543,
+            "timestamp_formatted": "01:22:22",
             "file": "workspace_10.jpg",
-            "path": "/home/karan/Desktop/tmp/dynamic_walpaper/wallpapers/movie/workspace_10.jpg"
+            "path": "wallpapers/movie/workspace_10.jpg",
+            "movie": "/run/media/karan/New Volume/ssd/The.Drama.2026.2160p.iT.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-4kHdHub.Com.mkv"
         }
     ]
 }

@@ -78,8 +78,11 @@ def listen(mapping, wallpaper_manager):
 
     logger.info("Connected to Hyprland IPC — listening for workspace events...")
 
-    # Buffer for handling partial/multiple events in a single recv()
-    buffer = ""
+    # Buffer for handling partial/multiple events in a single recv().
+    # Held as bytes and split BEFORE decoding: a multi-byte UTF-8 character
+    # (e.g. an emoji inside a window title) can be split across recv()
+    # boundaries, and a naive buffer.decode() would crash the daemon.
+    buffer = b""
 
     try:
         while True:
@@ -92,15 +95,18 @@ def listen(mapping, wallpaper_manager):
                 break
 
             # Append received bytes to the buffer
-            buffer += data.decode()
+            buffer += data
 
             # Split on newlines — each complete line is one event
-            events = buffer.split("\n")
+            lines = buffer.split(b"\n")
 
             # The last element may be incomplete — keep it in the buffer
-            buffer = events.pop()
+            buffer = lines.pop()
 
-            for event in events:
+            for raw_line in lines:
+                # Per-line decode with replacement: malformed/split sequences
+                # must never kill the daemon.
+                event = raw_line.decode("utf-8", errors="replace")
 
                 # Only react to workspacev2 events
                 if not event.startswith("workspacev2>>"):
@@ -123,8 +129,11 @@ def listen(mapping, wallpaper_manager):
 
                 logger.info(f"Wallpaper selected → {wallpaper}")
 
-                # Change the wallpaper
-                wallpaper_manager.set_wallpaper(wallpaper)
+                # Change the wallpaper — surface failures explicitly
+                if not wallpaper_manager.set_wallpaper(wallpaper):
+                    logger.warning(
+                        f"Failed to apply wallpaper for workspace {workspace_id}"
+                    )
 
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt — shutting down")
