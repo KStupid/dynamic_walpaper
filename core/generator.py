@@ -30,7 +30,7 @@ from core.config import load_raw_config, save_config
 
 VIDEO_EXTENSIONS = {
     ".mp4", ".mkv", ".avi", ".mov", ".webm",
-    ".m4v", ".mpg", ".mpeg", ".wmv", ".flv", ".ts",
+    ".m4v", ".mpg", ".mpeg", ".wmv", ".flv",
 }
 
 IMAGE_EXTENSIONS = {
@@ -417,48 +417,74 @@ def generate_wallpapers(
                 }
             )
     else:
-        # Default: randomly distribute workspace count across movies (original behavior)
+        # Handle mixed photo/video content: for each file, determine type
+        # and either extract a frame (video) or copy directly (image)
         for movie, count_for_movie in zip(movies, splits):
             if count_for_movie <= 0:
                 continue
 
-            try:
-                duration = get_video_duration(movie)
-            except RuntimeError as e:
-                # One unreadable movie must not kill the whole run
-                print(f"Warning: skipping '{movie}': {e}")
-                continue
+            file_ext = os.path.splitext(movie)[1].lower()
 
-            used_movies.append(movie)
-            print(f"  {os.path.basename(movie)} — {format_timestamp(duration)} → {count_for_movie} frame(s)")
-
-            for ts in generate_timestamps(duration, count_for_movie, rng):
-                idx = len(mappings) + 1
-                filename = f"workspace_{idx}.jpg"
-                out_file_path = str(output_dir / filename)
-
+            if file_ext in IMAGE_EXTENSIONS:
+                # Image file: copy directly, no ffmpeg needed
                 try:
-                    extract_frame(movie, ts, out_file_path)
+                    out_file_path = str(output_dir / f"workspace_{len(mappings) + 1}.jpg")
+                    shutil.copy2(movie, out_file_path)
+                    ts_str = "original"
+                    stored_path = _portable_path(out_file_path, project_root)
+                    mappings[str(len(mappings) + 1)] = stored_path
+                    frames_metadata.append(
+                        {
+                            "workspace": len(mappings),
+                            "timestamp": round(0.0, 3),
+                            "timestamp_formatted": ts_str,
+                            "file": f"workspace_{len(mappings) + 1}.jpg",
+                            "path": stored_path,
+                            "movie": movie,
+                        }
+                    )
+                except OSError as e:
+                    print(f"Warning: Failed to copy image '{movie}': {e}")
+                    continue
+            else:
+                # Video file: extract frame with ffmpeg (original behavior)
+                try:
+                    duration = get_video_duration(movie)
                 except RuntimeError as e:
-                    # A single bad frame must not kill the whole run
-                    print(f"Warning: {e} — skipping this frame")
+                    # One unreadable movie must not kill the whole run
+                    print(f"Warning: skipping '{movie}': {e}")
                     continue
 
-                ts_str = format_timestamp(ts)
-                print(f"    Workspace {idx} → {ts_str} → {filename}")
+                used_movies.append(movie)
+                print(f"  {os.path.basename(movie)} — {format_timestamp(duration)} → extracting frame(s)")
 
-                stored_path = _portable_path(out_file_path, project_root)
-                mappings[str(idx)] = stored_path
-                frames_metadata.append(
-                    {
-                        "workspace": idx,
-                        "timestamp": round(ts, 3),
-                        "timestamp_formatted": ts_str,
-                        "file": filename,
-                        "path": stored_path,
-                        "movie": movie,
-                    }
-                )
+                for ts in generate_timestamps(duration, count_for_movie, rng):
+                    idx = len(mappings) + 1
+                    filename = f"workspace_{idx}.jpg"
+                    out_file_path = str(output_dir / filename)
+
+                    try:
+                        extract_frame(movie, ts, out_file_path)
+                    except RuntimeError as e:
+                        # A single bad frame must not kill the whole run
+                        print(f"Warning: {e} — skipping this frame")
+                        continue
+
+                    ts_str = format_timestamp(ts)
+                    print(f"    Workspace {idx} → {ts_str} → {filename}")
+
+                    stored_path = _portable_path(out_file_path, project_root)
+                    mappings[str(idx)] = stored_path
+                    frames_metadata.append(
+                        {
+                            "workspace": idx,
+                            "timestamp": round(ts, 3),
+                            "timestamp_formatted": ts_str,
+                            "file": filename,
+                            "path": stored_path,
+                            "movie": movie,
+                        }
+                    )
 
     if not mappings:
         raise RuntimeError("No frames could be extracted from any movie.")

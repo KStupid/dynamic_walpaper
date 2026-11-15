@@ -3,3 +3,6 @@
 
 # Python bytecode cache
 __pycache__/
+
+# AI reference folder (developer-only, not tracked by git)
+AI_REFERENCE/
