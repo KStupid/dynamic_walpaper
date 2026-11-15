@@ -17,13 +17,19 @@ It is built from the `idea` spec file in the repo root.
 ONE command does everything (matches the spec: command <location>
 <no_of_workspace>):
 
-    python main.py ~/Movies 10
+    python main.py ~/Movies 10                           # mixed mode (default)
 
-    -> scans ~/Movies for video files (mp4, mkv, avi, mov, webm, ...)
-    -> randomly splits the 10 workspaces across the found movies
-       (how many frames each movie contributes is random)
-    -> extracts one random frame per workspace with ffmpeg
-    -> saves them to wallpapers/movie/workspace_N.jpg + metadata.json
+    -> **recursively scans** <location> for all video and image files
+       in all subfolders (sorted alphabetically)
+    -> **filters by media type** (default: mixed; use --media-type movies
+       or --media-type photos)
+    -> **randomly splits** the workspace count per movie/image
+    -> **if only 1 media item found**: assigns that same item to ALL
+       workspaces (single-media assignment)
+    -> **extracts random frames as JPGs** with ffmpeg (videos only);
+       images used directly (no ffmpeg needed)
+    -> saves them to wallpapers/movie/ (or custom --output-dir) +
+       metadata.json
     -> rewrites the [workspaces] table in config/config.toml
        (paths stored RELATIVE to the project root -> portable)
     -> stops any old background daemon, then starts the listener
@@ -38,6 +44,8 @@ Other modes:
     python main.py <location> <count> --no-start    # generate only
     python main.py <location> <count> --seed 42     # reproducible frames
     python main.py <location> <count> --output-dir DIR
+    python main.py ~/Movies 10 --media-type movies    # only videos (recursive)
+    python main.py ~/Pictures 10 --media-type photos   # only photos (recursive)
 
 The old standalone CLI still works:
     python tools/generate_movie_wallpapers.py <movie_or_folder> <count>
@@ -124,14 +132,23 @@ Change A - Single entrypoint                        [DONE]
     --output-dir, --listen, --foreground, --no-start. No-args = listener.
 
 Change B - Folder scanning                          [DONE]
-    find_movies() accepts a file or a folder (non-recursive scan of 11
-    video extensions, sorted before the random split).
+    find_movies() accepts a file or a folder (now **recursive** — walks
+    all subdirectories using os.walk(), collects both video and image files,
+    sorted alphabetically before the random split).
 
 Change C - Random per-movie distribution            [DONE]
     split_count_randomly(): every movie gets >= 1 frame when
     count >= movies (remainder multinomial-random); when
     count < movies, distinct movies are chosen at random.
     Verified: sums exactly, varies across seeds.
+
+Change D - Media type selection                      [DONE]
+    --media-type flag selects what to scan for:
+      "movies"  → only video files  (MP4, MKV, AVI, etc., recursive)
+      "photos"  → only image files  (JPG, PNG, WebP, GIF, BMP, recursive)
+      "mixed"   → both (default, original behavior)
+    Single-media assignment: if only 1 movie/photo is found across the
+    entire folder tree, it is automatically assigned to ALL workspaces.
 
 Change D - Background auto-start                    [DONE]
     After generation: stale/old daemon is SIGTERM'd (graceful), a fresh
@@ -167,9 +184,9 @@ Bug fixes included (were found in the v1 audit):
   gracefully via SIGTERM with pidfile cleanup.
 
 7. KNOWN LIMITATIONS
---------------------
+---------------------------
 - Comments inside config.toml are stripped when the tool rewrites it.
-- Folder scan is non-recursive (no subfolders).
+- **Folder scan is now recursive** (walks all subdirectories via os.walk()).
 - Special workspaces (special:*) log a "no wallpaper mapped" warning — harmless.
 - One unreadable/corrupt movie is skipped with a warning, not fatal.
 - No reconnect: if Hyprland restarts, restart the daemon (re-run the command).
@@ -179,15 +196,19 @@ Bug fixes included (were found in the v1 audit):
 - Periodic re-generation: random new screenshots refresh over time.
 - Auto-detect how many workspaces exist and size the mapping dynamically.
 - Make the randomness itself configurable.
-- Choose which movie goes to which workspace explicitly.
+- **Explicit movie-to-workspace assignment** (user specifies which movie/
+  image goes to which workspace) — partially addressed by `--media-type` and
+  single-media assignment, but full manual control not yet implemented.
 
 9. QUICKSTART
--------------
+----------------
     # one-time (permanent auto-start): add to hyprland.conf
     exec-once = python /path/to/dynamic_walpaper/main.py --listen
 
     # regenerate memories from a folder of movies:
-    python main.py ~/Movies 10
+    python main.py ~/Movies 10                           # mixed mode (default)
+    python main.py ~/Movies 10 --media-type movies       # only videos (recursive)
+    python main.py ~/Pictures 10 --media-type photos     # only photos (recursive)
 
     # inspect / control the background daemon:
     cat $XDG_RUNTIME_DIR/dynamic-wallpaper.log

@@ -223,6 +223,7 @@ def run_generation(args):
             seed=args.seed,
             project_root=PROJECT_ROOT,
             config_path=CONFIG_PATH,
+            media_type=args.media_type,
         )
     except (RuntimeError, ValueError) as e:
         logger.error(str(e))
@@ -270,6 +271,10 @@ def main():
     parser.add_argument(
         "--seed", type=int, default=None,
         help="Random seed for reproducible splits and timestamps",
+    )
+    parser.add_argument(
+        "--media-type", choices=["movies", "photos", "mixed"], default="mixed",
+        help="Type of media to scan for: movies, photos, or mixed (default: mixed)",
     )
     parser.add_argument(
         "--listen", action="store_true",

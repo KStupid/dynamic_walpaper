@@ -33,6 +33,10 @@ VIDEO_EXTENSIONS = {
     ".m4v", ".mpg", ".mpeg", ".wmv", ".flv", ".ts",
 }
 
+IMAGE_EXTENSIONS = {
+    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp",
+}
+
 
 def check_dependencies():
     """Verify ffmpeg and ffprobe are installed. Raises RuntimeError."""
@@ -51,10 +55,10 @@ def check_dependencies():
 
 def find_movies(location):
     """
-    Return movie file paths from a location.
+    Return movie/photo file paths from a location.
 
-    location may be a single video file or a folder (scanned non-recursively
-    for known video extensions, sorted alphabetically).
+    location may be a single video/image file or a folder (scanned recursively
+    for known video and image extensions, sorted alphabetically).
 
     Raises ValueError if the location doesn't exist.
     """
@@ -67,12 +71,15 @@ def find_movies(location):
         raise ValueError(f"Location does not exist: '{location}'")
 
     movies = []
-    for name in sorted(os.listdir(location)):
-        full = os.path.join(location, name)
-        if os.path.isfile(full) and os.path.splitext(name)[1].lower() in VIDEO_EXTENSIONS:
-            movies.append(full)
+    # Walk recursively through all subdirectories
+    for root, dirs, files in os.walk(location):
+        dirs.sort()  # Ensure consistent directory traversal order
+        for name in sorted(files):
+            full = os.path.join(root, name)
+            if os.path.isfile(full) and os.path.splitext(name)[1].lower() in VIDEO_EXTENSIONS | IMAGE_EXTENSIONS:
+                movies.append(full)
 
-    return movies
+    return sorted(movies)
 
 
 def split_count_randomly(total, n_movies, rng):
@@ -231,6 +238,7 @@ def generate_wallpapers(
     seed=None,
     project_root=None,
     config_path=None,
+    media_type="mixed",
 ):
     """
     Full generation pipeline: movies → frames → metadata.json → config.toml.
@@ -242,6 +250,7 @@ def generate_wallpapers(
         seed: random seed for reproducible splits/timestamps
         project_root: project root (default: parent of this file's dir)
         config_path: config.toml to update (default: <project_root>/config/config.toml)
+        media_type: "movies", "photos", or "mixed" (default: mixed)
 
     Returns:
         (workspaces_dict, metadata_dict)
@@ -269,17 +278,30 @@ def generate_wallpapers(
 
     location_abs = os.path.abspath(location)
     if os.path.isfile(location_abs):
-        print(f"Movie: {location_abs}")
+        print(f"Media: {location_abs}")
     else:
         print(f"Scanning folder: {location_abs}")
 
     movies = find_movies(location_abs)
+
+    # Filter by media type
+    if media_type == "movies":
+        movies = [m for m in movies if os.path.splitext(m)[1].lower() in VIDEO_EXTENSIONS]
+    elif media_type == "photos":
+        movies = [m for m in movies if os.path.splitext(m)[1].lower() in IMAGE_EXTENSIONS]
+
     if not movies:
+        exts = VIDEO_EXTENSIONS if media_type != "photos" else IMAGE_EXTENSIONS
         raise ValueError(
-            f"No video files found in '{location_abs}' "
-            f"(looked for: {', '.join(sorted(VIDEO_EXTENSIONS))})"
+            f"No {'video files' if media_type != 'photos' else 'image files'} found in '{location_abs}' "
+            f"(looked for: {', '.join(sorted(exts))})"
         )
-    print(f"Found {len(movies)} movie(s)")
+    print(f"Found {len(movies)} {'movie(s)' if media_type != 'photos' else 'photo(s)'}")
+
+    # --- Single media assignment: if only 1 item found, assign to all workspaces ---
+    single_media = len(movies) == 1 and workspace_count > 1
+    if single_media:
+        print(f"⚠ Only 1 media item found — assigning to all {workspace_count} workspaces")
 
     # 2. Randomly distribute the workspace count across the movies
     rng = random.Random(seed)
@@ -290,60 +312,166 @@ def generate_wallpapers(
     except OSError as e:
         raise RuntimeError(f"Failed to create output directory '{output_dir}': {e}")
 
-    # 3. Extract frames movie by movie
+    # 3. Extract frames / select images movie by movie
     mappings = {}
     frames_metadata = []
     used_movies = []
 
-    for movie, count_for_movie in zip(movies, splits):
-        if count_for_movie <= 0:
-            continue
+    # Determine if we're in single-media mode and what type
+    single_media = len(movies) == 1 and workspace_count > 1
+    is_image_single = single_media and os.path.splitext(movies[0])[1].lower() in IMAGE_EXTENSIONS
 
-        try:
-            duration = get_video_duration(movie)
-        except RuntimeError as e:
-            # One unreadable movie must not kill the whole run
-            print(f"Warning: skipping '{movie}': {e}")
-            continue
-
-        used_movies.append(movie)
-        print(f"  {os.path.basename(movie)} — {format_timestamp(duration)} → {count_for_movie} frame(s)")
-
-        for ts in generate_timestamps(duration, count_for_movie, rng):
-            idx = len(mappings) + 1
+    if single_media:
+        # Assign the single media to all workspaces
+        movie = movies[0]
+        if is_image_single:
+            # Use the same image for all workspaces
+            idx = 1
             filename = f"workspace_{idx}.jpg"
             out_file_path = str(output_dir / filename)
-
+            # Copy or use the image directly (no ffmpeg)
             try:
-                extract_frame(movie, ts, out_file_path)
+                shutil.copy2(movie, out_file_path)
+                print(f"  Using image: {os.path.basename(movie)} for all {workspace_count} workspaces")
+            except OSError as e:
+                raise RuntimeError(f"Failed to copy image '{movie}': {e}")
+
+            ts_str = "original"
+            stored_path = _portable_path(out_file_path, project_root)
+            mappings[str(idx)] = stored_path
+            # For all workspaces, use the same timestamp/original
+            for ws_id in range(1, workspace_count + 1):
+                mappings[str(ws_id)] = stored_path  # All point to same file
+                frames_metadata.append(
+                    {
+                        "workspace": ws_id,
+                        "timestamp": round(0.0, 3),
+                        "timestamp_formatted": ts_str,
+                        "file": filename,
+                        "path": stored_path,
+                        "movie": movie,
+                    }
+                )
+        else:
+            # Single video — extract workspace_count frames from it
+            try:
+                duration = get_video_duration(movie)
             except RuntimeError as e:
-                # A single bad frame must not kill the whole run
-                print(f"Warning: {e} — skipping this frame")
+                raise RuntimeError(f"Failed to read video duration: {e}")
+
+            print(f"  {os.path.basename(movie)} — {format_timestamp(duration)} → extracting {workspace_count} frames")
+
+            for i in range(workspace_count):
+                ts = generate_timestamps(duration, 1, rng)[0]  # Get one timestamp
+                idx = i + 1
+                filename = f"workspace_{idx}.jpg"
+                out_file_path = str(output_dir / filename)
+
+                try:
+                    extract_frame(movie, ts, out_file_path)
+                except RuntimeError as e:
+                    print(f"Warning: {e} — skipping this frame")
+                    continue
+
+                ts_str = format_timestamp(ts)
+                print(f"    Workspace {idx} → {ts_str} → {filename}")
+
+                stored_path = _portable_path(out_file_path, project_root)
+                mappings[str(idx)] = stored_path
+                frames_metadata.append(
+                    {
+                        "workspace": idx,
+                        "timestamp": round(ts, 3),
+                        "timestamp_formatted": ts_str,
+                        "file": filename,
+                        "path": stored_path,
+                        "movie": movie,
+                    }
+                )
+    elif media_type == "photos" and len(movies) > 0:
+        # Photos mode: randomly select workspace_count images from available photos
+        rng.shuffle(movies)
+        selected = movies[:workspace_count]
+
+        for idx, movie in enumerate(selected, start=1):
+            filename = f"workspace_{idx}.jpg"
+            out_file_path = str(output_dir / filename)
+            # Use the image directly (no ffmpeg)
+            try:
+                shutil.copy2(movie, out_file_path)
+            except OSError as e:
+                print(f"Warning: Failed to copy '{movie}': {e}")
                 continue
 
-            ts_str = format_timestamp(ts)
-            print(f"    Workspace {idx} → {ts_str} → {filename}")
-
+            ts_str = "original"
             stored_path = _portable_path(out_file_path, project_root)
             mappings[str(idx)] = stored_path
             frames_metadata.append(
                 {
                     "workspace": idx,
-                    "timestamp": round(ts, 3),
+                    "timestamp": round(0.0, 3),
                     "timestamp_formatted": ts_str,
                     "file": filename,
                     "path": stored_path,
                     "movie": movie,
                 }
             )
+    else:
+        # Default: randomly distribute workspace count across movies (original behavior)
+        for movie, count_for_movie in zip(movies, splits):
+            if count_for_movie <= 0:
+                continue
+
+            try:
+                duration = get_video_duration(movie)
+            except RuntimeError as e:
+                # One unreadable movie must not kill the whole run
+                print(f"Warning: skipping '{movie}': {e}")
+                continue
+
+            used_movies.append(movie)
+            print(f"  {os.path.basename(movie)} — {format_timestamp(duration)} → {count_for_movie} frame(s)")
+
+            for ts in generate_timestamps(duration, count_for_movie, rng):
+                idx = len(mappings) + 1
+                filename = f"workspace_{idx}.jpg"
+                out_file_path = str(output_dir / filename)
+
+                try:
+                    extract_frame(movie, ts, out_file_path)
+                except RuntimeError as e:
+                    # A single bad frame must not kill the whole run
+                    print(f"Warning: {e} — skipping this frame")
+                    continue
+
+                ts_str = format_timestamp(ts)
+                print(f"    Workspace {idx} → {ts_str} → {filename}")
+
+                stored_path = _portable_path(out_file_path, project_root)
+                mappings[str(idx)] = stored_path
+                frames_metadata.append(
+                    {
+                        "workspace": idx,
+                        "timestamp": round(ts, 3),
+                        "timestamp_formatted": ts_str,
+                        "file": filename,
+                        "path": stored_path,
+                        "movie": movie,
+                    }
+                )
 
     if not mappings:
         raise RuntimeError("No frames could be extracted from any movie.")
 
     # 4. Save metadata.json
+    # Collect movies from frames metadata (populated in all code paths)
+    movies_from_frames = [frm.get("movie") for frm in frames_metadata if frm.get("movie")]
+    # Fall back to used_movies if available, otherwise use a placeholder
+    metadata_movies = used_movies if used_movies else (movies_from_frames if movies_from_frames else [location_abs])
+
     metadata_content = {
         "source_location": location_abs,
-        "movies": used_movies,
+        "movies": metadata_movies,
         "workspace_count": len(mappings),
         "frames": frames_metadata,
     }

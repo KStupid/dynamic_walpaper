@@ -11,19 +11,39 @@ you use the generator, the wallpaper becomes a "memory" from a movie you've seen
 python main.py <location> <no_of_workspace>
 ```
 
-* `<location>` — a **movie file**, or a **folder of movies** (scanned automatically)
-* `<no_of_workspace>` — how many wallpapers to generate across all movies
+* `<location>` — a **movie file**, a **folder of movies**, a **folder of images**, or a **single image/file** (scanned recursively)
+* `<no_of_workspace>` — how many wallpapers to generate across all media
 
 That's it. Everything else happens automatically:
 
-1. Scans `<location>` for movies (or uses the single file you gave)
-2. Splits the screenshot count **randomly** per movie
-3. Extracts random frames as JPGs into `wallpapers/`
-4. Rewrites `config/config.toml` with the new paths
-5. Starts the background listener (wallpaper daemon) — no further action needed
+1. **Recursively scans** `<location>` for all video and image files in all subfolders
+2. **Filters by media type** (default: mixed; use `--media-type movies` or `--media-type photos`)
+3. **Randomly splits** the screenshot count per movie/image
+4. **For single media** (only 1 movie/photo found): assigns that same item to ALL workspaces
+5. **Extracts random frames as JPGs** into `wallpapers/` (videos only; images used directly)
+6. **Rewrites `config/config.toml`** with the new paths
+7. **Starts the background listener** (wallpaper daemon) — no further action needed
 
 After that, just switch workspaces (`Super+1` … `Super+10`) and the wallpaper
 swaps to match. Normal behavior: workspace switch → matching wallpaper.
+```
+
+## Optional flags
+
+```bash
+python main.py ~/Movies 10                    # mixed mode (default)
+python main.py ~/Movies 10 --media-type movies # only video files (recursive)
+python main.py ~/Pictures 10 --media-type photos  # only image files (recursive)
+python main.py movie.mp4 6                     # single movie, 6 workspaces
+```
+
+### `--media-type`
+
+Choose what type of media to scan for:
+
+* **`mixed`** (default): both videos and images — videos get frames extracted, images used directly
+* **`movies`**: only video files (MP4, MKV, AVI, etc.) — recursive folder scanning
+* **`photos`**: only image files (JPG, PNG, WebP, GIF, BMP) — recursive folder scanning
 
 ## How the two parts fit together
 
@@ -67,6 +87,8 @@ Optional flags:
 
 ```bash
 python main.py ~/Movies 10 --output-dir ~/wallpapers --seed 42
+python main.py ~/Movies 10 --media-type movies --seed 42
+python main.py ~/Pictures 10 --media-type photos --seed 42
 ```
 
 ### Run the listener only (after generation)
